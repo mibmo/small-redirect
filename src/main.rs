@@ -13,14 +13,22 @@ fn redirect_handler(mut stream: TcpStream, redirect_address: &str) -> Result<(),
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = std::env::var("ADDR").expect("failed to get ADDR env variable");
+    // default address for docker images
+    let addr = if cfg!(feature = "docker") {
+        "0.0.0.0:3000".to_string()
+    } else {
+        std::env::var("ADDR").expect("failed to get ADDR env variable")
+    };
+
     let redirect_address = std::env::var("REDIRECT_URI").expect("failed to get REDIRECT_URI env variable");
 
     let listener = TcpListener::bind(&addr)?;
     listener.set_ttl(100)?;
-
     for stream in listener.incoming() {
-        redirect_handler(stream?, &redirect_address)?;
+        match redirect_handler(stream?, &redirect_address) {
+            Err(err) => eprintln!("An error occured while handling stream: {:?}", err),
+            _ => {},
+        }
     }
 
     Ok(())
